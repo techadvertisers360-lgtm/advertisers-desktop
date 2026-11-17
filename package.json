@@ -1,0 +1,68 @@
+{
+  "name": "advertiser360-desktop-agent",
+  "version": "1.0.9",
+  "description": "Advertisers360 HRMS desktop agent",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.advertisers360.desktop-agent",
+    "productName": "Advertisers360 Agent",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "!src/config.json"
+    ],
+    "artifactName": "Advertisers360AgentSetup.${ext}",
+    "protocols": [
+      {
+        "name": "Advertisers360 Agent Wake",
+        "schemes": ["advertiser360agent"]
+      }
+    ],
+    "publish": {
+      "provider": "generic",
+      "url": "https://advertisers360-backend-six.vercel.app/agent-updates",
+      "channel": "latest"
+    },
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "artifactName": "Advertisers360AgentSetup.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.business",
+      "artifactName": "Advertiser360Agent-Mac.${ext}",
+      "identity": null
+    },
+    "dmg": {
+      "artifactName": "Advertiser360Agent-Mac.${ext}"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}
