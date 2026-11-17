@@ -3,7 +3,7 @@ name: Build macOS Desktop Agent
 # electron-builder can only produce a .dmg on an actual macOS host (Windows
 # machines can't build the mac target — see desktop-agent's electron-builder
 # config, and app-builder-lib's packager.js hard-blocks it on win32), so this
-# offloads the build to a macOS GitHub-hosted runner.
+# offloads the build to a macOS GitHub-hosted runner (free for public repos).
 #
 # This repo holds only the desktop agent (at the repo root). The backend is a
 # separate repo (techadvertisers360-lgtm/advertisers360-backend), so the .dmg
