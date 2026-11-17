@@ -6,6 +6,7 @@ const { uploadScreenshot } = require("./uploader");
 const { withAuth, SESSION_UNAVAILABLE } = require("./session-refresh");
 const { CAPTURE_INTERVAL_MS } = require("./config");
 const session = require("./session");
+const macPermissions = require("./mac-permissions");
 const logger = require("./logger");
 
 // Every capture is written to this on-disk queue FIRST and only deleted once
@@ -127,6 +128,12 @@ async function flushQueue() {
 async function runCycle() {
   const current = session.get();
   if (!current) return;
+  // macOS: without Screen Recording permission the capture is blank —
+  // guide the user to switch it on instead (see mac-permissions.js).
+  if (!(await macPermissions.ensureScreenPermission())) {
+    await flushQueue();
+    return;
+  }
   try {
     const buffer = await captureScreenshotBuffer();
     enqueue(current.user.id, buffer, new Date());

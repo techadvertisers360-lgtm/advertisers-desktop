@@ -19,6 +19,7 @@ on:
       - "assets/**"
       - "package.json"
       - "package-lock.json"
+      - "build/**"
       - ".github/workflows/build-mac-agent.yml"
   workflow_dispatch:
 
@@ -40,7 +41,45 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Signing + notarization removes macOS's "unidentified developer" block,
+      # so employees can just double-click the app. It needs an Apple
+      # Developer account; add these repo secrets and every build is signed
+      # automatically (without them the build stays unsigned, as before):
+      #   MAC_CERT_P12_BASE64  - "Developer ID Application" cert (.p12), base64
+      #   MAC_CERT_PASSWORD    - password of that .p12
+      #   APPLE_ID             - Apple ID email of the developer account
+      #   APPLE_APP_SPECIFIC_PASSWORD - app-specific password for that Apple ID
+      #   APPLE_TEAM_ID        - 10-character team id
+      - name: Enable signing + notarization (only when Apple secrets exist)
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+        run: |
+          if [ -z "$CSC_LINK" ]; then
+            echo "No Apple signing secrets set — building unsigned."
+            exit 0
+          fi
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            delete p.build.mac.identity;
+            Object.assign(p.build.mac, {
+              hardenedRuntime: true,
+              gatekeeperAssess: false,
+              entitlements: 'build/entitlements.mac.plist',
+              entitlementsInherit: 'build/entitlements.mac.plist',
+              notarize: true,
+            });
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+          "
+          echo "Signing + notarization enabled."
+
       - name: Build .dmg
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run dist:mac
 
       - name: Upload .dmg as a workflow artifact
