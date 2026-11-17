@@ -1,0 +1,9 @@
+# Force binary mode so core.autocrlf (true on this Windows machine) never
+# rewrites line-endings inside these files — a single byte flip is enough to
+# break a zip's CRC or a dmg's block checksums.
+*.dmg binary
+*.zip binary
+*.png binary
+*.webm binary
+*.ico binary
+*.icns binary

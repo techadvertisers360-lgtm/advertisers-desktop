@@ -1,0 +1,81 @@
+name: Build macOS Desktop Agent
+
+# electron-builder can only produce a .dmg on an actual macOS host (Windows
+# machines can't build the mac target — see desktop-agent's electron-builder
+# config, and app-builder-lib's packager.js hard-blocks it on win32), so this
+# offloads the build to a macOS GitHub-hosted runner.
+#
+# This repo holds only the desktop agent (at the repo root). The backend is a
+# separate repo (techadvertisers360-lgtm/advertisers360-backend), so the .dmg
+# is always uploaded as a workflow artifact. To also publish it straight into
+# the backend repo's downloads/ folder, add a repo secret BACKEND_REPO_PAT (a
+# GitHub PAT with contents:write on advertisers360-backend) — the optional
+# publish step below picks it up automatically; until then it's skipped.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/build-mac-agent.yml"
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build .dmg
+        run: npm run dist:mac
+
+      - name: Upload .dmg as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Advertiser360Agent-Mac
+          path: dist/Advertiser360Agent-Mac.dmg
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          echo "### macOS desktop agent build complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the **Advertiser360Agent-Mac** artifact from this run, then copy it into" >> "$GITHUB_STEP_SUMMARY"
+          echo '`backend/downloads/Advertiser360Agent-Mac.dmg` in the advertisers360-backend repo and push — that is what makes it live for employees.' >> "$GITHUB_STEP_SUMMARY"
+
+      # Optional: auto-publish straight to the live backend repo. Inert until
+      # a BACKEND_REPO_PAT secret is added to this repo's settings — see the
+      # comment at the top of this file for what scope it needs.
+      - name: Publish .dmg to advertisers360-backend (optional)
+        # secrets can't be referenced in `if:` conditions, so the opt-out
+        # lives inside the script instead — this always runs on a push to
+        # main, but exits immediately if the secret hasn't been added yet.
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ secrets.BACKEND_REPO_PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "BACKEND_REPO_PAT secret not set — skipping auto-publish. Download the artifact from this run instead."
+            exit 0
+          fi
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/techadvertisers360-lgtm/advertisers360-backend.git" ../backend-publish
+          mkdir -p ../backend-publish/downloads
+          cp dist/Advertiser360Agent-Mac.dmg ../backend-publish/downloads/Advertiser360Agent-Mac.dmg
+          cd ../backend-publish
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add downloads/Advertiser360Agent-Mac.dmg
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: publish macOS desktop agent build [skip ci]"
+            git push
+          else
+            echo "No change to the .dmg, skipping commit."
+          fi
