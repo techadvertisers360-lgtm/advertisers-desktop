@@ -1,6 +1,6 @@
 {
   "name": "advertiser360-desktop-agent",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Advertisers360 HRMS desktop agent",
   "private": true,
   "main": "src/main.js",

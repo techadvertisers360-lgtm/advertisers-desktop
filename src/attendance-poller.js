@@ -128,7 +128,14 @@ async function checkResync() {
   if (!current) return;
 
   try {
-    const status = await withAuth((s) => apiClient.fetchResyncStatus(s.accessToken));
+    const capture = captureScheduler.getCaptureStatus();
+    const info = {
+      version: app.getVersion(),
+      platform: process.platform === "darwin" ? "mac" : process.platform === "win32" ? "windows" : process.platform,
+      captureStatus: capture.status,
+      captureError: capture.error,
+    };
+    const status = await withAuth((s) => apiClient.fetchResyncStatus(s.accessToken, info));
     if (status === SESSION_UNAVAILABLE || !status) return;
 
     if (status.resync && status.resync.requestId !== lastActedResyncId) {

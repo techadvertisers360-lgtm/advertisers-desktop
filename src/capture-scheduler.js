@@ -24,6 +24,17 @@ const FLUSH_BATCH = 30;
 let timer = null;
 let flushing = false;
 
+// Reported to the backend on every poll (see attendance-poller.js) so the
+// Screenshots page can show why someone online + checked in has no
+// screenshots. "off" = not capturing (not checked in / not an employee).
+let captureStatus = { status: "off", error: null };
+function setStatus(status, error = null) {
+  captureStatus = { status, error };
+}
+function getCaptureStatus() {
+  return timer ? captureStatus : { status: "off", error: null };
+}
+
 function ensureQueueDir() {
   fs.mkdirSync(QUEUE_DIR, { recursive: true });
 }
@@ -131,14 +142,17 @@ async function runCycle() {
   // macOS: without Screen Recording permission the capture is blank —
   // guide the user to switch it on instead (see mac-permissions.js).
   if (!(await macPermissions.ensureScreenPermission())) {
+    setStatus("no_permission", "macOS Screen Recording permission is off");
     await flushQueue();
     return;
   }
   try {
     const buffer = await captureScreenshotBuffer();
     enqueue(current.user.id, buffer, new Date());
+    setStatus("ok");
   } catch (err) {
     logger.write(`[capture] capture failed: ${err.message}`);
+    setStatus(/permission/i.test(err.message) ? "no_permission" : "error", err.message);
   }
   await flushQueue();
 }
@@ -162,4 +176,4 @@ function isRunning() {
   return timer !== null;
 }
 
-module.exports = { start, stop, isRunning, flushQueue, pendingCount };
+module.exports = { start, stop, isRunning, flushQueue, pendingCount, getCaptureStatus };

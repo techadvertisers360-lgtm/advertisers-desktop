@@ -122,10 +122,18 @@ async function fetchCurrentAttendance(accessToken) {
 // recent "refresh all agents" request a manager/CEO has made (or null if
 // none has ever been made). The caller compares this id against the last
 // one it already acted on to decide whether to do anything.
-async function fetchResyncStatus(accessToken) {
-  const res = await fetch(`${API_BASE_URL}/agent/resync-status`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+// `info` (optional) is this agent's self-report — version, OS and whether
+// screenshots are working — shown to managers on the Screenshots page.
+async function fetchResyncStatus(accessToken, info = null) {
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  if (info) {
+    headers["X-Agent-Version"] = info.version;
+    headers["X-Agent-Platform"] = info.platform;
+    headers["X-Agent-Capture"] = info.captureStatus;
+    // Header values must be plain ASCII on one line.
+    if (info.captureError) headers["X-Agent-Capture-Error"] = info.captureError.replace(/[^ -~]/g, "").slice(0, 250);
+  }
+  const res = await fetch(`${API_BASE_URL}/agent/resync-status`, { headers });
 
   let body;
   try {
